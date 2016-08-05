@@ -1,6 +1,6 @@
-## Single Page Web Application Boilerplate (Front-End)
+## Basic Front-end Boilerplate
 
-Front-end boilerplate with a bunch of helpful build tasks for getting up and running in the least amount of steps. 
+Front-end boilerplate with a bunch of helpful dev/build tasks preconfigured. 
 
 #### Key features :
 
