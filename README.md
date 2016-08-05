@@ -1,6 +1,6 @@
-## Single Page Web Application Boilerplate (Front-End)
+## Basic Front-end Boilerplate
 
-Front-end boilerplate with a bunch of helpful build tasks for getting up and running in the least amount of steps. 
+Lightweight Front-end boilerplate with a bunch of helpful dev/build tasks. 
 
 #### Key features :
 
@@ -13,8 +13,8 @@ Front-end boilerplate with a bunch of helpful build tasks for getting up and run
 Need to have node.js, NPM, and Gulp installed before moving ahead.
 
 ```sh
-$ https://github.com/JoshuaBolitho/Single-Page-Boilerplate.git
-$ cd Single-Page-Boilerplate
+$ https://github.com/JoshuaBolitho/Basic-Frontend-Boilerplate.git
+$ cd Basic-Frontend-Boilerplatee
 $ npm install
 ```
 
