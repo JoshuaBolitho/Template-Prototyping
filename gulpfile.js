@@ -88,7 +88,7 @@ function processJavascript () {
 	    .pipe( exorcist(sourcemapPath) )
 	    .pipe( source(OUTPUT_FILE) )
 	    .pipe( buffer() )
-	    .pipe( uglify() )
+	    //.pipe( uglify() )
 	    .pipe( gulp.dest(SCRIPTS_PATH) )
 }
 
