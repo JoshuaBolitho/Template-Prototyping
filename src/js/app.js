@@ -1,16 +1,16 @@
 
 class App {
 
+	
 	constructor () {
-		console.log('APP CONSTRUCTOR')
+		
 	}
 
-	boot () {
+	
+	init () {
 
-		this.utils = new Utils();
 	}
-
 }
 
 var app = new App();
-app.boot();
+app.init();
