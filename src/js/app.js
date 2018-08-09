@@ -7,10 +7,10 @@ class App {
 	}
 
 	
-	init () {
+	inti () {
 
 	}
 }
 
 var app = new App();
-app.init();
+init.boot();

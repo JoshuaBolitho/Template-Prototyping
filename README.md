@@ -13,8 +13,8 @@ Lightweight Front-end boilerplate with a bunch of helpful dev/build tasks.
 Need to have node.js, NPM, and Gulp installed before moving ahead.
 
 ```sh
-$ https://github.com/JoshuaBolitho/Basic-Frontend-Boilerplate.git
-$ cd Basic-Frontend-Boilerplatee
+$ git@git.assembla.com:inventiv/manny-award-microsite-miracle-worker.git
+$ cd manny-award-microsite-miracle-worker
 $ npm install
 ```
 

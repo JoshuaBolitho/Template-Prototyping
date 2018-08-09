@@ -1,150 +1,138 @@
-const gulp = require('gulp');                       // Task manager used to perform all the below tasks.
-const del = require('del');                         // Delete files and folders on the HD.
-const path = require('path');                       // handles directory paths assignments.
-const buffer = require('gulp-buffer');              // Converts stream to buffer
-const source = require('vinyl-source-stream');      // Converts a stream to a virtual file.
-const exorcist = require('exorcist');               // Browserify writes js.map to output.js when debug=true. Exorcist pulls it out and creates external output.js.map
-const uglify = require('gulp-uglify');              // minimizes code length
-const browserify = require('browserify');           // Converts Common.js require modules to vanilla javascript, includes dependency management.
-const babelify = require('babelify');               // Converts ES6 javascript schema to browser friendly version.
-const browserSync = require('browser-sync');        // Serves site files and performs reloads on file updates
-const sass = require('gulp-sass');                  // CSS preprocessor for converting SASS to CSS
-const sourcemaps = require('gulp-sourcemaps');      // Builds a CSS sourcemap
-const autoprefixer = require('gulp-autoprefixer');  // Magic task that add all the CSS browser prefixes automatically
-const processHTML = require('gulp-processhtml');    // Handles build time conditions in index.html.
-const watch = require('gulp-watch');                // Better alternative to gulp.watch
-const gulpSequence = require('gulp-sequence');      // Ensures task has completed before starting next one.
-const mergeStream = require('merge-stream');        // Merge two or more streams together.
+var gulp = require('gulp');							// Task manager used to perform all the below tasks.
+var del = require('del');							// Simple module for deleting files and folders on the HD.
+var path = require('path');							// Module provides utilities for working with file and directory paths.
+var argv = require('yargs').argv;					// Exposes passed arguments from the command line.
+var gutil = require('gulp-util');					// Utility functions for gulp plugins, such as logging.
+var source = require('vinyl-source-stream');		// Converts a stream to a virtual file.
+var buffer = require('gulp-buffer');				// Converts stream to buffer
+var exorcist = require('exorcist');					// Browserify writes js.map to output.js when debug=true. Exorcist pulls it out and creates external output.js.map
+var gulpif = require('gulp-if');					// Adds the ability to apply conditional logic within gulp
+var uglify = require('gulp-uglify');				// Adds the ability to apply conditional logic within gulp
+var browserify = require('browserify');				// Converts Common.js require modules to vanilla javascript, includes dependency management.
+var babelify = require('babelify');					// Converts ES6 javascript schema to browser friendly version.
+var browserSync = require('browser-sync');			// Serves site files and performs reloads on file updates
+var sass = require('gulp-sass');					// CSS preprocessor for converting SASS to CSS
+var sourcemaps = require('gulp-sourcemaps');		// Builds a CSS sourcemap
+var autoprefixer = require('gulp-autoprefixer');	// Magic task that add all the CSS browser prefixes automatically
+var processHTML = require('gulp-processhtml');		// Handles build time conditions in index.html.
+var hoganify = require('hoganify');                 // Compiles hogan modules from mustache templates and then embeds the result to app.min.js, so templates can be accessed as require modules.
+var gulpSequence = require('gulp-sequence');
 
-
-// Paths
-const BUILD_PATH = path.join(__dirname, 'build/');
-const SOURCE_PATH = path.join(__dirname, 'src/');
-const ASSET_PATH = path.join(__dirname, 'src/assets/');
-
-// Files
-const ENTRY_JS_FILE = path.join(SOURCE_PATH, 'js/app.js');
-const OUTPUT_JS_PATH = path.join(BUILD_PATH, 'js/');
-const ENTRY_SCSS_FILE = path.join(SOURCE_PATH, 'scss/main.scss');
-const OUTPUT_CSS_PATH = path.join(BUILD_PATH, 'css/');
+// PATH CONSTANTS
+var BUILD_PATH = './build';
+var SCRIPTS_PATH = BUILD_PATH + '/js';
+var SOURCE_PATH = './src';
+var ASSET_PATH = SOURCE_PATH + '/assets';
+var ENTRY_FILE = SOURCE_PATH + '/js/app.js';
+var OUTPUT_FILE = 'app.min.js';
 
 
 
 /*************************************************************
 **
-**  Deletes the entire contents of the build directory
+**	Deletes the entire contents of the build directory
 **
 **************************************************************/
 
 function cleanBuild () {
-    return del([BUILD_PATH + '**/*.*']);
+     del([BUILD_PATH + '/**/*.*']);
 }
 
 
 /*************************************************************
 **
-**  Copies 'src/media' folder into the '/build' folder.
+**	Copies 'src/assets' folder into the '/build' folder.
 **
 **************************************************************/
 
 function copyAssets () {
-
-    return gulp.src(ASSET_PATH + '**/*')
-        .pipe(gulp.dest(BUILD_PATH + 'assets/'));
+    return gulp.src(ASSET_PATH + '/**/*')
+        .pipe(gulp.dest(BUILD_PATH + '/assets'));
 }
 
 
 
 /*************************************************************
 **
-**  Javascript is originally written in ES2015 script because
-**  of how clean and easy to structure it is. Since there are
-**  plenty of browsers that can't read it properly it's just
-**  easier to translate it back to browser friendly 
-**  javascript.
+**	Javascript is originally written in ES2015 script because
+**	of how clean and easy to structure it is. Since there are
+**	plenty of browsers that can't read it properly it's just
+**	easier to translate it back to browser friendly 
+**	javascript.
 **
 **************************************************************/
 
 function processJavascript () {
 
-
-    var sourcemapPath = OUTPUT_JS_PATH + 'app.min.map';
+    var sourcemapPath = SCRIPTS_PATH + '/' + OUTPUT_FILE + '.map';
 
     // handles js files so that they work on the web
     var browserified = browserify({
-        paths: [ SOURCE_PATH + 'js/' ],
-        entries: [ENTRY_JS_FILE],
+		paths: [ path.join(__dirname, SOURCE_PATH + '/js') ],
+        entries: [ENTRY_FILE],
         debug: true
     });
-      
-    // converts ES6 to vanilla javascript. Note that preset is an NPM dependency
-    browserified.transform(babelify, {
-        "presets": ["es2015"]
+	  
+	// converts ES6 to vanilla javascript. Note that preset is an NPM dependency
+	browserified.transform(babelify, { "presets": ["es2015"] });
+    browserified.transform(hoganify, { live:false, ext:'.html,.mustache' });
+
+	// bundles all the "require" dependencies together into one container
+	var bundle = browserified.bundle().on('error', function(error){
+		gutil.log(gutil.colors.red('[Build Error]', error.message));
+		this.emit('end');
     });
 
-    // bundles all the "require" dependencies together into one container
-    var bundle = browserified.bundle().on('error', function(error){
-        console.log('[Build Error]', error.message);
-        this.emit('end');
-    });
-
-    var bundleStream = bundle
-        .pipe( exorcist(sourcemapPath) )
-        .pipe( source('app.min.js') )
-        .pipe( buffer() )
-        //.pipe( uglify() )
-        .pipe( gulp.dest(BUILD_PATH + 'js/'))
-
-    // copy vendor folder to js/
-    var vendorStream = gulp.src( SOURCE_PATH + 'js/vendor/**/**' )
-        .pipe(gulp.dest(BUILD_PATH + 'js/vendor/'));
-
-    // now that stream is machine readable javascript, finish the rest of the gulp build tasks
-    return mergeStream(bundleStream, vendorStream);
+	// now that stream is machine readable javascript, finish the rest of the gulp build tasks
+	return bundle
+	    .pipe( exorcist(sourcemapPath) )
+	    .pipe( source(OUTPUT_FILE) )
+	    .pipe( buffer() )
+	    //.pipe( uglify() )
+	    .pipe( gulp.dest(SCRIPTS_PATH) )
 }
 
 
 /*************************************************************
 **
-**  Converts SASS to CSS
+**	Converts SASS to CSS
 **
 **************************************************************/
 
 function processSASS () {
 
-    var autoprefixerOptions = {
-        browsers: ['last 2 versions', '> 5%', 'Firefox ESR']
-    };
+	var autoprefixerOptions = {
+	 	browsers: ['last 2 versions', '> 5%', 'Firefox ESR']
+	};
 
-    return gulp.src(ENTRY_SCSS_FILE)
-        .pipe(sourcemaps.init())
-        .pipe(sass())
+	return gulp.src(SOURCE_PATH + '/scss/main.scss')
+		.pipe(sourcemaps.init())
+        .pipe(sass().on('error', sass.logError))
         .pipe(sourcemaps.write())
-        .pipe(autoprefixer(autoprefixerOptions))
-        .pipe(gulp.dest(OUTPUT_CSS_PATH))
+    	.pipe(autoprefixer(autoprefixerOptions))
+        .pipe(gulp.dest(BUILD_PATH + '/css'))
 }
 
 
 /*************************************************************
 **
-**  Handles conditional comments in index.html
+**	Handles conditional comments in index.html
 **
 **************************************************************/
 
 function processIndexHTML () {
 
-
-    return gulp.src(SOURCE_PATH + 'index.html')
+	return gulp.src(SOURCE_PATH + '/index.html')
         .pipe( processHTML({}) )
-        .pipe( gulp.dest(BUILD_PATH) );
+        .pipe( gulp.dest(BUILD_PATH) )
 }
 
 
 /*************************************************************
 **
-**  Starts the Browsersync server and watches for file 
-**  updates, which will prompt specific build tasks to the 
-**  type of file updated.
+**	Starts the Browsersync server and watches for file 
+**	updates, which will prompt specific build tasks to the 
+**	type of file updated.
 **
 **************************************************************/
 
@@ -160,42 +148,41 @@ function serve () {
     browserSync(options);
     
     // Watches for changes in files inside the './src' folder.
-    watch(SOURCE_PATH + 'js/**/*.js', function () {
-        gulp.start('watch-js');
-    });
+    gulp.watch(SOURCE_PATH + '/js/**/*.js', ['watch-js']);
 
     // Watches for updates to sass css preprocessor files.
-    watch(SOURCE_PATH + 'scss/**/*.scss', function () {
-        gulp.start('watch-sass');
-    });
+    gulp.watch(SOURCE_PATH + '/scss/**/*.scss', ['watch-sass']);
 
     // Watches for updates in index.html
-    watch(SOURCE_PATH + 'index.html', function () {
-        gulp.start('watch-html');
-    });
+    gulp.watch(SOURCE_PATH + '/index.html', ['watch-html']);
+
+    // Watches for updates in mustache partials and templates and reloads javascript, since the they get compiled into js objects.
+    gulp.watch(SOURCE_PATH + '/views/**/*.mustache', ['watch-js']);
     
     // Watches for changes in files inside the './static' folder. Also sets 'keepFiles' to true (see cleanBuild()).
-    gulp.watch(ASSET_PATH + '**/*', function () {
-        gulp.start('watch-assets');
+    gulp.watch(ASSET_PATH + '/**/*', ['watch-assets']).on('change', function() {
+        return;
     });
 }
 
 // TODO: minify CSS
 // TODO: compress images in copy-assets, or maybe just add it to a final-build task.
 
-
 gulp.task('clean-build', cleanBuild);
 gulp.task('process-sass', processSASS);
 gulp.task('process-html', processIndexHTML);
 gulp.task('copy-assets', copyAssets);
 gulp.task('process-javascript', processJavascript);
-gulp.task('watch-js', ['process-javascript'], browserSync.reload);
+
+gulp.task('watch-js', ['build'], browserSync.reload);
 gulp.task('watch-sass', ['process-sass'], browserSync.reload);
 gulp.task('watch-html', ['process-html'], browserSync.reload);
 gulp.task('watch-assets', ['copy-assets'], browserSync.reload);
+
 gulp.task('build', function(callback){
-    gulpSequence('clean-build', 'process-sass', 'process-javascript', 'process-html', 'copy-assets')(callback);
+    gulpSequence('clean-build', 'copy-assets', 'process-sass', 'process-html', 'process-javascript')(callback);
 });
 gulp.task('serve', function(callback){
     gulpSequence('build', serve)(callback);
 });
+
